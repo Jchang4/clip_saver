@@ -1,86 +1,120 @@
 import logging
-import os
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Any
 
-from numpy import ndarray
-from pydantic import BaseModel, Field
-from supervision import BoxAnnotator, Detections, VideoInfo, VideoSink
+import numpy as np
+from pydantic import BaseModel, ConfigDict, Field
+from supervision import Detections
 from ultralytics import YOLO
 
-logger = logging.getLogger(__name__)
+from .base import Frame
+from .buffer import Buffer
+from .connection import Connection
 
 
 class DetectionSaver(BaseModel):
-    model_path: str = Field(..., description="Path to the model")
-    output_dir: str = Field(..., description="Path to the output directory")
-    video_source: str = Field(..., description="Path to the source video")
-    video_width: int = Field(640, description="Video width")
-    video_height: int = Field(480, description="Video height")
-    video_fps: int = Field(25, description="Video FPS")
+    """
+    Class for saving detections to a video file.
+
+    Args:
+        model_path (str): Path to the model
+        output_dir (str): Path to the output directory
+        video_source (str): Path to the source video
+        video_width (int): Video width
+        video_height (int): Video height
+        video_fps (int): Video FPS
+
+        confidence_threshold (float): Confidence threshold
+        verbose (bool): Verbose mode
+    """
+
+    model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
+
+    ##################
+    # Input Variables
+    ##################
+    video_sources: list[str]
+    yolo_model_path: str
+    yolo_verbose: bool = False
+    output_dir: str
 
     # Detection settings
-    confidence_threshold: float = Field(0.25, description="Confidence threshold")
-    verbose: bool = Field(False, description="Verbose mode")
+    confidence_threshold: float = 0.25
 
-    def __init__(self, **data):
+    show: bool = False
+    verbose: bool = False
+
+    ##################
+    # Class managed variables - Don't touch!
+    ##################
+    yolo: YOLO = Field(default=None)
+    connections: list[Connection] = Field(default=None)
+    buffer: Buffer = Field(default_factory=Buffer)
+
+    def __init__(self, **data: Any):
         super().__init__(**data)
-        self.yolo = YOLO(self.model_path)
+        self.yolo = YOLO(self.yolo_model_path, task="detect")
+        self.connections = [
+            Connection(video_source=source) for source in self.video_sources
+        ]
 
     def start(self):
-        current_time_utc = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
+        time_first_detection: datetime | None = None
+        time_last_detection: datetime | None = None
 
-        # Setup YOLO
-        results = self.yolo.track(
-            self.video_source,
-            stream=True,
-            conf=self.confidence_threshold,
-            verbose=self.verbose,
-        )
+        while True:
+            images = [connection.get_frame() for connection in self.connections]
+            images = [img for img in images if img is not None]
+            results = self.yolo.track(
+                images,
+                stream=True,
+                persist=True,
+                conf=self.confidence_threshold,
+                verbose=self.yolo_verbose,
+                show=self.show,
+                imgsz=320,
+            )
 
-        # Setup Video Writer
-        video_file_path = os.path.join(self.output_dir, current_time_utc)
-        video_info = VideoInfo(
-            width=self.video_width,
-            height=self.video_height,
-            fps=self.video_fps,
-        )
-
-        with VideoSink(video_file_path, video_info) as sink:
             # Start detection
             for result in results:
-                detections = Detections.from_ultralytics(results)
-                if detections.class_id is None:
+                if result.boxes.cls is None or len(result.boxes.cls) == 0:
                     continue
-                sink.write_frame(
-                    self.annotate_image(
+
+                if not time_first_detection:
+                    time_first_detection = datetime.utcnow()
+
+                time_last_detection = datetime.utcnow()
+
+                self.buffer.add_frame(
+                    Frame(
                         raw_image=result.orig_img,
-                        detections=detections,
+                        detections=Detections.from_ultralytics(result),
+                        timestamp=datetime.utcnow(),
                     )
                 )
 
+            # End detection
+            if (
+                time_first_detection is not None
+                and time_last_detection is not None
+                and (
+                    # Greater than 30 seconds since last detection
+                    (datetime.utcnow() - time_last_detection).seconds >= 30
+                    or
+                    # Detecting activity for more than 5 minutes
+                    ((datetime.utcnow() - time_first_detection).seconds >= (60 * 5))
+                )
+            ):
                 if self.verbose:
-                    logger.info("Frame written.")
+                    logging.info("Saving video...")
 
-    def annotate_image(
-        self,
-        raw_image: ndarray,
-        detections: Detections,
-    ):
-        box_annotator = BoxAnnotator(
-            text_thickness=1,
-            text_padding=5,
-            text_scale=0.3,
-        )
+                time_first_detection = None
+                time_last_detection = None
+                self.buffer.save(class_map=self.yolo.names)
+                self.buffer.reset()
 
-        labels = [
-            f"id={tracker_id} class={self.yolo.names[class_id] if self.yolo.names and class_id else class_id} {confidence:.2f}"
-            for xyxy, mask, confidence, class_id, tracker_id in detections
-        ]
-
-        frame = box_annotator.annotate(
-            scene=raw_image,
-            detections=detections,
-            labels=labels,
-        )
-
-        return frame
+    def get_class_name(self, class_id: int | None):
+        assert self.yolo.names
+        if not class_id:
+            return "None"
+        return self.yolo.names[class_id]
