@@ -47,6 +47,7 @@ class DetectionSaver(BaseModel):
 
     show: bool = False
     verbose: bool = False
+    sleep_time_secs: float = 0.1
 
     ##################
     # Class managed variables - Don't touch!
@@ -89,7 +90,7 @@ class DetectionSaver(BaseModel):
             images = [img for img in images if img is not None]
 
             if not images:
-                sleep(0.1)
+                sleep(self.sleep_time_secs)
                 continue
 
             results = self.yolo.track(
@@ -157,6 +158,8 @@ class DetectionSaver(BaseModel):
                 )
 
                 self.buffer.reset()
+
+            sleep(self.sleep_time_secs)
 
         if (
             len(self.buffer.get_frames()) > 0
