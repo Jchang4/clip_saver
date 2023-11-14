@@ -9,6 +9,7 @@ from ultralytics import YOLO
 
 from .base import Frame
 from .buffer import Buffer
+from .callbacks import DetectionCallback, run_in_background
 from .connection import Connection
 
 
@@ -37,6 +38,7 @@ class DetectionSaver(BaseModel):
     yolo_model_path: str
     yolo_verbose: bool = False
     output_dir: str
+    callbacks: list[DetectionCallback] = Field(default_factory=list)
 
     # Detection settings
     confidence_threshold: float = 0.25
@@ -68,7 +70,6 @@ class DetectionSaver(BaseModel):
             results = self.yolo.track(
                 images,
                 stream=True,
-                persist=True,
                 conf=self.confidence_threshold,
                 verbose=self.yolo_verbose,
                 show=self.show,
@@ -80,17 +81,28 @@ class DetectionSaver(BaseModel):
                 if result.boxes.cls is None or len(result.boxes.cls) == 0:
                     continue
 
+                time_last_detection = datetime.utcnow()
+                frame = Frame(
+                    raw_image=result.orig_img,
+                    detections=Detections.from_ultralytics(result),
+                    timestamp=datetime.utcnow(),
+                )
+
                 if not time_first_detection:
                     time_first_detection = datetime.utcnow()
-
-                time_last_detection = datetime.utcnow()
-
-                self.buffer.add_frame(
-                    Frame(
-                        raw_image=result.orig_img,
-                        detections=Detections.from_ultralytics(result),
-                        timestamp=datetime.utcnow(),
+                    run_in_background(
+                        lambda: [
+                            callback.on_detection_start(frame)
+                            for callback in self.callbacks
+                        ]
                     )
+
+                self.buffer.add_frame(frame)
+
+                run_in_background(
+                    lambda: [
+                        callback.on_detection(frame) for callback in self.callbacks
+                    ]
                 )
 
             # End detection
@@ -111,6 +123,14 @@ class DetectionSaver(BaseModel):
                 time_first_detection = None
                 time_last_detection = None
                 self.buffer.save(class_map=self.yolo.names)
+
+                run_in_background(
+                    lambda: [
+                        callback.on_detection_end(self.buffer.get_frames())
+                        for callback in self.callbacks
+                    ]
+                )
+
                 self.buffer.reset()
 
     def get_class_name(self, class_id: int | None):
