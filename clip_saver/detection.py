@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from threading import Thread
 from typing import Any
 
 import numpy as np
@@ -52,6 +53,8 @@ class DetectionSaver(BaseModel):
     yolo: YOLO = Field(default=None)
     connections: list[Connection] = Field(default=None)
     buffer: Buffer = Field(default_factory=Buffer)
+    is_running: bool = False
+    thread: Thread | None = None
 
     def __init__(self, **data: Any):
         super().__init__(**data)
@@ -61,10 +64,26 @@ class DetectionSaver(BaseModel):
         ]
 
     def start(self):
+        self.is_running = True
+
+        if self.show:
+            return self.run()
+
+        if self.thread is None:
+            self.thread = Thread(target=self.run)
+            self.thread.start()
+
+    def stop(self):
+        self.is_running = False
+        if self.thread and self.thread.is_alive():
+            self.thread.join()
+            self.thread = None
+
+    def run(self):
         time_first_detection: datetime | None = None
         time_last_detection: datetime | None = None
 
-        while True:
+        while self.is_running:
             images = [connection.get_frame() for connection in self.connections]
             images = [img for img in images if img is not None]
             results = self.yolo.track(
@@ -132,6 +151,19 @@ class DetectionSaver(BaseModel):
                 )
 
                 self.buffer.reset()
+
+        if (
+            len(self.buffer.get_frames()) > 0
+            and time_first_detection is not None
+            and time_last_detection is not None
+        ):
+            self.buffer.save(class_map=self.yolo.names)
+            run_in_background(
+                lambda: [
+                    callback.on_detection_end(self.buffer.get_frames())
+                    for callback in self.callbacks
+                ]
+            )
 
     def get_class_name(self, class_id: int | None):
         assert self.yolo.names
