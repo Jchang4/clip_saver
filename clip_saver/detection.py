@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 from threading import Thread
+from time import sleep
 from typing import Any
 
 import numpy as np
@@ -86,6 +87,11 @@ class DetectionSaver(BaseModel):
         while self.is_running:
             images = [connection.get_frame() for connection in self.connections]
             images = [img for img in images if img is not None]
+
+            if not images:
+                sleep(0.1)
+                continue
+
             results = self.yolo.track(
                 images,
                 stream=True,
