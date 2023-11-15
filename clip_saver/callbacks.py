@@ -15,16 +15,13 @@ class Callback(BaseModel):
     pass
 
 
-class DetectionCallback(Callback, ABC):
-    @abstractmethod
+class DetectionCallback(Callback):
     def on_detection_start(self, frame: Frame):
         pass
 
-    @abstractmethod
     def on_detection(self, frame: Frame):
         pass
 
-    @abstractmethod
     def on_detection_end(self, frames: list[Frame]):
         pass
 
