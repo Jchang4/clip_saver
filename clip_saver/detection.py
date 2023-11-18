@@ -46,6 +46,7 @@ class DetectionSaver(BaseModel):
     confidence_threshold: float = 0.25
 
     sleep_time_secs: float = 5
+    predict_kwargs: dict[str, Any] = Field(default_factory=dict)
     show: bool = False
     verbose: bool = False
 
@@ -99,6 +100,7 @@ class DetectionSaver(BaseModel):
                 conf=self.confidence_threshold,
                 verbose=self.yolo_verbose,
                 show=self.show,
+                **self.predict_kwargs,
             )
 
             # Start detection
