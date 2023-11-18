@@ -45,9 +45,9 @@ class DetectionSaver(BaseModel):
     # Detection settings
     confidence_threshold: float = 0.25
 
+    sleep_time_secs: float = 5
     show: bool = False
     verbose: bool = False
-    sleep_time_secs: float = 0.1
 
     ##################
     # Class managed variables - Don't touch!
@@ -99,7 +99,6 @@ class DetectionSaver(BaseModel):
                 conf=self.confidence_threshold,
                 verbose=self.yolo_verbose,
                 show=self.show,
-                imgsz=320,
             )
 
             # Start detection
