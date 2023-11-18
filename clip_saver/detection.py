@@ -1,3 +1,4 @@
+import gc
 import logging
 from datetime import datetime, timedelta
 from threading import Thread
@@ -90,7 +91,16 @@ class DetectionSaver(BaseModel):
             images = [connection.get_frame() for connection in self.connections]
             images = [img for img in images if img is not None]
 
-            if not images:
+            # def resize_img(connection):
+            #     frame = connection.get_frame()
+            #     return cv2.resize(frame, (320, 320)) if frame is not None else None
+
+            # images = np.array(
+            #     [resize_img(connection) for connection in self.connections]
+            # )
+            # images = images[images != None]
+
+            if len(images) == 0:
                 sleep(self.sleep_time_secs)
                 continue
 
@@ -174,6 +184,7 @@ class DetectionSaver(BaseModel):
                     for callback in self.callbacks
                 ]
             )
+            self.buffer.reset()
 
     def get_class_name(self, class_id: int | None):
         assert self.yolo.names
