@@ -27,6 +27,6 @@ class DetectionCallback(Callback):
 
 
 def run_in_background(fn: Callable):
-    thread = Thread(target=fn)
+    thread = Thread(target=fn, daemon=True)
     thread.start()
     return thread
