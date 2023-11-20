@@ -41,6 +41,8 @@ class DetectionSaver(BaseModel):
     yolo_verbose: bool = False
     output_dir: str
     callbacks: list[DetectionCallback] = Field(default_factory=list)
+    wait_between_detections: float = 30
+    max_video_time_in_mins: float = 60 * 5
 
     # Detection settings
     confidence_threshold: float = 0.25
@@ -56,7 +58,7 @@ class DetectionSaver(BaseModel):
     yolo: YOLO = Field(default=None)
     connections: list[Connection] = Field(default=None)
     buffer: Buffer = Field(default_factory=Buffer)
-    is_running: Event = Field(default_factory=Event)
+    loop_lock: Event = Field(default_factory=Event)
     thread: Thread | None = None
 
     def __init__(self, **data: Any):
@@ -66,18 +68,22 @@ class DetectionSaver(BaseModel):
             Connection(video_source=source) for source in self.video_sources
         ]
 
+    @property
+    def is_running(self):
+        return self.loop_lock.is_set()
+
     def start(self):
-        self.is_running.set()
+        self.loop_lock.set()
 
         if self.show:
             return self.run()
 
         if self.thread is None:
-            self.thread = Thread(target=self.run)
+            self.thread = Thread(target=self.run, daemon=True)
             self.thread.start()
 
     def stop(self):
-        self.is_running.clear()
+        self.loop_lock.clear()
 
         if self.thread:
             self.thread.join()
@@ -90,7 +96,7 @@ class DetectionSaver(BaseModel):
         time_first_detection: datetime | None = None
         time_last_detection: datetime | None = None
 
-        while self.is_running.is_set():
+        while self.is_running:
             images = [connection.get_frame() for connection in self.connections]
             images = [img for img in images if img is not None]
 
@@ -142,10 +148,14 @@ class DetectionSaver(BaseModel):
                 and time_last_detection is not None
                 and (
                     # Greater than 30 seconds since last detection
-                    (datetime.utcnow() - time_last_detection).seconds >= 30
+                    (datetime.utcnow() - time_last_detection).seconds
+                    >= self.wait_between_detections
                     or
                     # Detecting activity for more than 5 minutes
-                    ((datetime.utcnow() - time_first_detection).seconds >= (60 * 5))
+                    (
+                        (datetime.utcnow() - time_first_detection).seconds
+                        >= self.max_video_time_in_mins
+                    )
                 )
             ):
                 if self.verbose:
