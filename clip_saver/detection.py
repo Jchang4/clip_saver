@@ -1,7 +1,6 @@
-import gc
 import logging
 from datetime import datetime, timedelta
-from threading import Thread
+from threading import Event, Thread
 from time import sleep
 from typing import Any
 
@@ -57,7 +56,7 @@ class DetectionSaver(BaseModel):
     yolo: YOLO = Field(default=None)
     connections: list[Connection] = Field(default=None)
     buffer: Buffer = Field(default_factory=Buffer)
-    is_running: bool = False
+    is_running: Event = Field(default_factory=Event)
     thread: Thread | None = None
 
     def __init__(self, **data: Any):
@@ -68,7 +67,7 @@ class DetectionSaver(BaseModel):
         ]
 
     def start(self):
-        self.is_running = True
+        self.is_running.set()
 
         if self.show:
             return self.run()
@@ -78,27 +77,22 @@ class DetectionSaver(BaseModel):
             self.thread.start()
 
     def stop(self):
-        self.is_running = False
-        if self.thread and self.thread.is_alive():
+        self.is_running.clear()
+
+        if self.thread:
             self.thread.join()
             self.thread = None
+
+        for connection in self.connections:
+            connection.disconnect()
 
     def run(self):
         time_first_detection: datetime | None = None
         time_last_detection: datetime | None = None
 
-        while self.is_running:
+        while self.is_running.is_set():
             images = [connection.get_frame() for connection in self.connections]
             images = [img for img in images if img is not None]
-
-            # def resize_img(connection):
-            #     frame = connection.get_frame()
-            #     return cv2.resize(frame, (320, 320)) if frame is not None else None
-
-            # images = np.array(
-            #     [resize_img(connection) for connection in self.connections]
-            # )
-            # images = images[images != None]
 
             if len(images) == 0:
                 sleep(self.sleep_time_secs)
