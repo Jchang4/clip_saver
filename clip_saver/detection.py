@@ -100,7 +100,8 @@ class DetectionSaver(BaseModel):
 
             self.time_first_detection = None
             self.time_last_detection = None
-            self.buffer.save(class_map=self.yolo_model.names)
+            # TODO: decide whether to remove this. Instead we can use the callbacks to save the frames
+            # self.buffer.save(class_map=self.yolo_model.names)
 
             run_in_background(
                 lambda: [
@@ -111,6 +112,7 @@ class DetectionSaver(BaseModel):
 
             if self.verbose:
                 logging.info("Resetting buffer...")
+
             self.buffer.reset()
 
 
