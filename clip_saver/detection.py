@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,7 +16,7 @@ from .connection import Connection
 class DetectionSaver(BaseModel):
     model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
 
-    yolo_model_path: str
+    yolo_model_path: str | Path
     confidence_threshold: float = 0.25
     wait_between_detections_secs: float = 30
     max_secs_between_detections: float = 5 * 60
@@ -28,13 +29,18 @@ class DetectionSaver(BaseModel):
     callbacks: list[DetectionCallback] = Field(default_factory=list)
 
     # Class managed variables - Don't touch!
-    yolo_model: YOLO = Field(default=None)
+    yolo_model: YOLO
     time_first_detection: datetime | None = None
     time_last_detection: datetime | None = None
 
-    def __init__(self, **data: Any):
-        super().__init__(**data)
-        self.yolo_model = YOLO(self.yolo_model_path, task="detect")
+    # def __init__(self, **kwargs: Any):
+    #     super().__init__(**kwargs)
+    #     self.yolo_model = YOLO(kwargs["yolo_model_path"], task="detect")
+
+    @classmethod
+    def from_model_path(cls, yolo_model_path: str | Path, **kwargs: Any):
+        yolo_model = YOLO(yolo_model_path, task="detect")
+        return cls(yolo_model_path=yolo_model_path, yolo_model=yolo_model, **kwargs)
 
     def predict_next_frame(self):
         images = [connection.get_frame() for connection in self.connections]
