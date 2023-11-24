@@ -1,10 +1,8 @@
 from collections import defaultdict
-from datetime import datetime
 
 from pydantic import BaseModel, Field
-from supervision import VideoInfo, VideoSink
 
-from .base import Frame, MostAccurateFrame, StartAndEndFrames
+from .frame import Frame, MostAccurateFrame, StartAndEndFrames
 
 
 class Buffer(BaseModel):
@@ -19,23 +17,6 @@ class Buffer(BaseModel):
 
     def reset(self):
         self.frames.clear()
-
-    def save(self, class_map: dict[int, str] | None = None):
-        """Saves the buffer to disk."""
-        if not self.frames:
-            return
-
-        output_path = f"outputs/{datetime.utcnow().isoformat()}.mp4"
-
-        video_info = VideoInfo(
-            width=self.frames[0].raw_image.shape[1],
-            height=self.frames[0].raw_image.shape[0],
-            fps=25,
-        )
-
-        with VideoSink(output_path, video_info) as sink:
-            for frame in self.frames:
-                sink.write_frame(frame=frame.get_annotated_image(class_map=class_map))
 
 
 class SamplingBuffer(Buffer):
@@ -65,9 +46,9 @@ class MostAccurateFrameBuffer(Buffer):
 
     def add_frame(self, frame: Frame):
         if (
-            not frame.detections.class_id
-            or not frame.detections.confidence
-            or not frame.detections.tracker_id
+            frame.detections.class_id is None
+            or frame.detections.confidence is None
+            or frame.detections.tracker_id is None
         ):
             return
 
@@ -79,7 +60,7 @@ class MostAccurateFrameBuffer(Buffer):
             )
         ):
             accurate_frame = self.frames.get(tracker_id, {}).get(class_id)
-            if not accurate_frame:
+            if accurate_frame is None:
                 self.frames[tracker_id][class_id] = MostAccurateFrame(
                     frame=frame,
                     start_time=frame.timestamp,
@@ -90,9 +71,9 @@ class MostAccurateFrameBuffer(Buffer):
             prev_frame = accurate_frame.frame
 
             assert (
-                prev_frame.detections.class_id
-                and prev_frame.detections.confidence
-                and prev_frame.detections.tracker_id
+                prev_frame.detections.class_id is not None
+                and prev_frame.detections.confidence is not None
+                and prev_frame.detections.tracker_id is not None
             )
 
             prev_confidence = 0
@@ -131,14 +112,14 @@ class StartAndEndFramesBuffer(Buffer):
     )
 
     def add_frame(self, frame: Frame):
-        if not frame.detections.class_id or not frame.detections.tracker_id:
+        if frame.detections.class_id is None or frame.detections.tracker_id is None:
             return
 
         for class_id, tracker_id in zip(
             frame.detections.class_id, frame.detections.tracker_id
         ):
             start_and_end_frames = self.frames.get(tracker_id, {}).get(class_id)
-            if not start_and_end_frames:
+            if start_and_end_frames is None:
                 self.frames[tracker_id][class_id] = StartAndEndFrames(
                     start=frame,
                     end=frame,

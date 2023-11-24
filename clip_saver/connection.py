@@ -1,9 +1,6 @@
-from threading import Thread
-from typing import Any, Iterable
-
 import cv2
 from cv2.typing import MatLike
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 
 class Connection(BaseModel):
@@ -13,11 +10,11 @@ class Connection(BaseModel):
         video_source (str): The video source to connect to
     """
 
-    model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(frozen=True)
 
     video_source: str
 
-    def get_frame(self) -> MatLike | None:
+    def get_image(self) -> MatLike | None:
         """Get the latest frame from the video source.
 
         We always reconnect when getting frames to ensure
@@ -57,3 +54,35 @@ def get_rtsp_url(
         str: The RTSP URL
     """
     return f"rtsp://{username}:{password}@{ip}:{port}/cam/realmonitor?channel={channel}&subtype={subtype}"
+
+
+def get_camera_from_rtsp_url(rtsp_url: str):
+    """Get the camera from an RTSP URL.
+
+    Args:
+        rtsp_url (str): The RTSP URL in the format
+                `rtsp://username:password@ip:port/cam/realmonitor?channel=channel&subtype=subtype`
+
+    Returns:
+        dict[str, Any]: The camera details
+            - username (str): username used to login to the camera
+            - password (str): password used to login to the camera
+            - ip_address (str): IP address of the camera
+            - port (int): port of the camera
+            - channel (int): channel to use. Defaults to 1.
+            - subtype (int): subtype to use. For Lorex cameras this sets the video quality. Defaults to 1.
+    """
+    username, password = rtsp_url.split("@")[0].split("://")[1].split(":")
+    ip, port = rtsp_url.split("@")[1].split("/")[0].split(":")
+    channel, subtype = rtsp_url.split("?")[1].split("&")
+    channel = int(channel.split("=")[1])
+    subtype = int(subtype.split("=")[1])
+
+    return {
+        "username": username,
+        "password": password,
+        "ip_address": ip,
+        "port": port,
+        "channel": channel,
+        "subtype": subtype,
+    }

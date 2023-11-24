@@ -1,10 +1,11 @@
-from abc import ABC, abstractmethod
+from pathlib import Path
 from threading import Thread
 from typing import Any, Callable
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from ultralytics import YOLO
 
-from .base import Frame
+from .frame import Frame
 
 
 class Callback(BaseModel):
@@ -12,7 +13,9 @@ class Callback(BaseModel):
     Base class for all callbacks.
     """
 
-    pass
+    model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
+    yolo_model: YOLO
+    yolo_model_path: Path
 
 
 class DetectionCallback(Callback):
@@ -26,7 +29,8 @@ class DetectionCallback(Callback):
         pass
 
 
-def run_in_background(fn: Callable):
-    thread = Thread(target=fn, daemon=True)
+def run_in_background(fn: Callable, *args: Any):
+    # Wait for thread to finish before shutting down
+    thread = Thread(target=fn, args=args, daemon=False)
     thread.start()
     return thread
