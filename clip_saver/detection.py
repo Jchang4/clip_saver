@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import torch
 from pydantic import BaseModel, ConfigDict, Field
 from supervision import Detections
 from ultralytics import YOLO
@@ -11,6 +12,12 @@ from .buffer import Buffer
 from .callbacks import DetectionCallback, run_in_background
 from .connection import Connection
 from .frame import Frame
+
+DEVICE = "cpu"
+if torch.cuda.is_available():
+    DEVICE = "cuda"
+elif torch.backends.mps.is_available():
+    DEVICE = "mps"
 
 
 class DetectionSaver(BaseModel):
@@ -24,6 +31,7 @@ class DetectionSaver(BaseModel):
     yolo_verbose: bool = False
     show: bool = False
     verbose: bool = False
+    device: str = DEVICE
     connections: list[Connection]
     buffer: Buffer = Field(default_factory=Buffer)
     callbacks: list[DetectionCallback] = Field(default_factory=list)
@@ -38,9 +46,10 @@ class DetectionSaver(BaseModel):
         cls,
         yolo_model_path: Path,
         callbacks: list[type[DetectionCallback]] = [],
+        dvice: str = DEVICE,
         **kwargs: Any
     ):
-        yolo_model = YOLO(yolo_model_path, task="detect")
+        yolo_model = YOLO(yolo_model_path, task="detect").to(dvice)
         return cls(
             yolo_model_path=yolo_model_path,
             yolo_model=yolo_model,
