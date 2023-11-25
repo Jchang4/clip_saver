@@ -4,5 +4,11 @@ setup(
     name="clip_saver",
     version="0.7.2",
     packages=find_packages(),
-    install_requires=["ultralytics", "supervision", "numpy", "pydantic"],
+    install_requires=[
+        "lapx",
+        "numpy",
+        "pydantic",
+        "supervision",
+        "ultralytics",
+    ],
 )
