@@ -76,7 +76,7 @@ class DetectionSaver:
         self.max_secs_between_detections = max_secs_between_detections
         self.sleep_secs_between_detections = sleep_secs_between_detections
 
-    def start(self):
+    def run(self):
         results: Iterable[Results] = self.yolo_model.track(
             "list.streams",
             stream=True,
@@ -87,62 +87,73 @@ class DetectionSaver:
         # Start detection
         # Run 1 batch
         while results:
-            for i in range(len(self.rtsp_urls)):
-                result = next(iter(results))
-                if (
-                    not isinstance(result, Results)
-                    or not result.boxes
-                    or result.boxes.cls is None
-                    or len(result.boxes.cls) == 0
-                ):
-                    continue
+            self.process_batch(results=results)
 
-                self.time_last_detection = datetime.utcnow()
-                frame = Frame(
-                    raw_image=result.orig_img,
-                    detections=Detections.from_ultralytics(result),
-                    timestamp=datetime.utcnow(),
-                    rtsp_url=result.path,
-                )
+    def get_iterator(self) -> Iterable[Results]:
+        return self.yolo_model.track(
+            "list.streams",
+            stream=True,
+            verbose=self.yolo_verbose,
+            **self.yolo_predict_kwargs,
+        )
 
-                if not self.time_first_detection:
-                    self.time_first_detection = datetime.utcnow()
-                    run_in_background(self.on_detection_start, frame)
-
-                self.buffer.add_frame(frame)
-                run_in_background(self.on_detection, frame)
-
-            # End detection
+    def process_batch(self, results: Iterable[Results]):
+        for i in range(len(self.rtsp_urls)):
+            result = next(iter(results))
             if (
-                self.time_first_detection is not None
-                and self.time_last_detection is not None
-                and (
-                    # Greater than 30 seconds since last detection
-                    (datetime.utcnow() - self.time_last_detection).seconds
-                    >= self.wait_between_detections_secs
-                    or
-                    # Detecting activity for more than 5 minutes
-                    (
-                        (datetime.utcnow() - self.time_first_detection).seconds
-                        >= self.max_secs_between_detections
-                    )
-                )
+                not isinstance(result, Results)
+                or not result.boxes
+                or result.boxes.cls is None
+                or len(result.boxes.cls) == 0
             ):
-                if self.verbose:
-                    logging.info("Saving video...")
+                continue
 
-                self.time_first_detection = None
-                self.time_last_detection = None
-                run_in_background(self.on_detection_end)
+            self.time_last_detection = datetime.utcnow()
+            frame = Frame(
+                raw_image=result.orig_img,
+                detections=Detections.from_ultralytics(result),
+                timestamp=datetime.utcnow(),
+                rtsp_url=result.path,
+            )
 
-                if self.verbose:
-                    logging.info("Resetting buffer...")
+            if not self.time_first_detection:
+                self.time_first_detection = datetime.utcnow()
+                run_in_background(self.on_detection_start, frame)
 
-                self.buffer.reset()
+            self.buffer.add_frame(frame)
+            run_in_background(self.on_detection, frame)
 
-            # Sleep between detections
-            if self.sleep_secs_between_detections > 0:
-                sleep(self.sleep_secs_between_detections)
+        # End detection
+        if (
+            self.time_first_detection is not None
+            and self.time_last_detection is not None
+            and (
+                # Greater than 30 seconds since last detection
+                (datetime.utcnow() - self.time_last_detection).seconds
+                >= self.wait_between_detections_secs
+                or
+                # Detecting activity for more than 5 minutes
+                (
+                    (datetime.utcnow() - self.time_first_detection).seconds
+                    >= self.max_secs_between_detections
+                )
+            )
+        ):
+            if self.verbose:
+                logging.info("Saving video...")
+
+            self.time_first_detection = None
+            self.time_last_detection = None
+            run_in_background(self.on_detection_end)
+
+            if self.verbose:
+                logging.info("Resetting buffer...")
+
+            self.buffer.reset()
+
+        # Sleep between detections
+        if self.sleep_secs_between_detections > 0:
+            sleep(self.sleep_secs_between_detections)
 
     def on_detection_start(self, frame: Frame):
         for callback in self.callbacks:
