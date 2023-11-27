@@ -1,17 +1,17 @@
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from time import sleep
+from typing import Any, Iterable
 
 import torch
-from pydantic import BaseModel, ConfigDict, Field
 from supervision import Detections
 from ultralytics import YOLO
+from ultralytics.engine.results import Results
 
-from .buffer import Buffer
-from .callbacks import DetectionCallback, run_in_background
-from .connection import Connection
-from .frame import Frame
+from clip_saver.buffer import Buffer
+from clip_saver.callbacks import DetectionCallback, run_in_background
+from clip_saver.frame import Frame
 
 DEVICE = "cpu"
 if torch.cuda.is_available():
@@ -20,112 +20,128 @@ elif torch.backends.mps.is_available():
     DEVICE = "mps"
 
 
-class DetectionSaver(BaseModel):
-    model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
-
+class DetectionSaver:
+    rtsp_urls: list[str]
     yolo_model_path: Path
-    confidence_threshold: float = 0.25
     wait_between_detections_secs: float = 30
-    max_secs_between_detections: float = 5 * 60
-    yolo_predict_kwargs: dict[str, Any] = Field(default_factory=dict)
+    max_secs_between_detections: float = 30
+    sleep_secs_between_detections: float = 0.1
+    yolo_predict_kwargs: dict[str, Any]
     yolo_verbose: bool = False
-    show: bool = False
     verbose: bool = False
     device: str = DEVICE
-    connections: list[Connection]
-    buffer: Buffer = Field(default_factory=Buffer)
-    callbacks: list[DetectionCallback] = Field(default_factory=list)
+    buffer: Buffer
+    callbacks: list[DetectionCallback]
 
     # Class managed variables - Don't touch!
     yolo_model: YOLO
     time_first_detection: datetime | None = None
     time_last_detection: datetime | None = None
 
-    @classmethod
-    def from_model_path(
-        cls,
+    def __init__(
+        self,
+        rtsp_urls: list[str],
         yolo_model_path: Path,
+        buffer: Buffer | None = None,
         callbacks: list[type[DetectionCallback]] = [],
-        dvice: str = DEVICE,
-        **kwargs: Any
+        verbose: bool = False,
+        yolo_verbose: bool = False,
+        wait_between_detections_secs: float = 30,
+        max_secs_between_detections: float = 30,
+        sleep_secs_between_detections: float = 0.1,
+        device: str = DEVICE,
+        **kwargs,
     ):
-        yolo_model = YOLO(yolo_model_path, task="detect").to(dvice)
-        return cls(
-            yolo_model_path=yolo_model_path,
-            yolo_model=yolo_model,
-            callbacks=[
-                Callback(
-                    yolo_model=yolo_model,
-                    yolo_model_path=yolo_model_path,
-                )
-                for Callback in callbacks
-            ],
-            **kwargs,
-        )
+        super().__init__()
+        # Create a list.streams file containing the RTSP urls
+        with open("list.streams", "w") as f:
+            f.write("\n".join(rtsp_urls))
 
-    def predict_next_frame(self):
-        images = {connection: connection.get_image() for connection in self.connections}
-        images = {k: v for k, v in images.items() if v is not None}
+        self.rtsp_urls = rtsp_urls
+        self.device = device
+        self.yolo_model_path = yolo_model_path
+        self.yolo_model = YOLO(yolo_model_path, task="detect").to(device)
+        self.callbacks = [
+            Callback(
+                yolo_model=self.yolo_model,
+                yolo_model_path=yolo_model_path,
+            )
+            for Callback in callbacks
+        ]
+        self.buffer = Buffer() if buffer is None else buffer
+        self.yolo_predict_kwargs = kwargs
+        self.verbose = verbose
+        self.yolo_verbose = yolo_verbose
+        self.wait_between_detections_secs = wait_between_detections_secs
+        self.max_secs_between_detections = max_secs_between_detections
+        self.sleep_secs_between_detections = sleep_secs_between_detections
 
-        if len(images) == 0:
-            return
-
-        results = self.yolo_model.track(
-            list(images.values()),
+    def start(self):
+        results: Iterable[Results] = self.yolo_model.track(
+            "list.streams",
             stream=True,
-            conf=self.confidence_threshold,
             verbose=self.yolo_verbose,
-            show=self.show,
             **self.yolo_predict_kwargs,
         )
 
         # Start detection
-        for result, connection in zip(results, images.keys()):
-            if result.boxes.cls is None or len(result.boxes.cls) == 0:
-                continue
+        for result in results:
+            # Run 1 loop through all cameras
+            for i in range(len(self.rtsp_urls)):
+                if (
+                    not isinstance(result, Results)
+                    or not result.boxes
+                    or result.boxes.cls is None
+                    or len(result.boxes.cls) == 0
+                ):
+                    continue
 
-            self.time_last_detection = datetime.utcnow()
-            frame = Frame(
-                raw_image=result.orig_img,
-                detections=Detections.from_ultralytics(result),
-                timestamp=datetime.utcnow(),
-                connection=connection,
-            )
-
-            if not self.time_first_detection:
-                self.time_first_detection = datetime.utcnow()
-                self.on_detection_start(frame)
-
-            self.buffer.add_frame(frame)
-            self.on_detection(frame)
-
-        # End detection
-        if (
-            self.time_first_detection is not None
-            and self.time_last_detection is not None
-            and (
-                # Greater than 30 seconds since last detection
-                (datetime.utcnow() - self.time_last_detection).seconds
-                >= self.wait_between_detections_secs
-                or
-                # Detecting activity for more than 5 minutes
-                (
-                    (datetime.utcnow() - self.time_first_detection).seconds
-                    >= self.max_secs_between_detections
+                self.time_last_detection = datetime.utcnow()
+                frame = Frame(
+                    raw_image=result.orig_img,
+                    detections=Detections.from_ultralytics(result),
+                    timestamp=datetime.utcnow(),
+                    rtsp_url=result.path,
                 )
-            )
-        ):
-            if self.verbose:
-                logging.info("Saving video...")
 
-            self.time_first_detection = None
-            self.time_last_detection = None
-            self.on_detection_end()
+                if not self.time_first_detection:
+                    self.time_first_detection = datetime.utcnow()
+                    run_in_background(self.on_detection_start, frame)
 
-            if self.verbose:
-                logging.info("Resetting buffer...")
+                self.buffer.add_frame(frame)
+                run_in_background(self.on_detection, frame)
 
-            self.buffer.reset()
+            # End detection
+            if (
+                self.time_first_detection is not None
+                and self.time_last_detection is not None
+                and (
+                    # Greater than 30 seconds since last detection
+                    (datetime.utcnow() - self.time_last_detection).seconds
+                    >= self.wait_between_detections_secs
+                    or
+                    # Detecting activity for more than 5 minutes
+                    (
+                        (datetime.utcnow() - self.time_first_detection).seconds
+                        >= self.max_secs_between_detections
+                    )
+                )
+            ):
+                if self.verbose:
+                    logging.info("Saving video...")
+
+                self.time_first_detection = None
+                self.time_last_detection = None
+                run_in_background(self.on_detection_end)
+
+                if self.verbose:
+                    logging.info("Resetting buffer...")
+
+                self.buffer.reset()
+
+            # Sleep between detections
+            if self.sleep_secs_between_detections > 0:
+                sleep(self.sleep_secs_between_detections)
 
     def on_detection_start(self, frame: Frame):
         for callback in self.callbacks:

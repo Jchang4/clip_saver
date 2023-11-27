@@ -5,8 +5,11 @@ from pydantic import BaseModel, Field
 from .frame import Frame, MostAccurateFrame, StartAndEndFrames
 
 
-class Buffer(BaseModel):
-    frames: list[Frame] = Field(default_factory=list)
+class Buffer:
+    frames: list[Frame]
+
+    def __init__(self):
+        self.frames = []
 
     def add_frame(self, frame: Frame):
         """Adds a frame to the buffer."""
@@ -40,9 +43,11 @@ class SamplingBuffer(Buffer):
 
 class MostAccurateFrameBuffer(Buffer):
     # TrackID to Class ID to AccurateFrame
-    frames: dict[int, dict[int, MostAccurateFrame]] = Field(
-        default_factory=lambda: defaultdict(dict)
-    )
+    frames: dict[int, dict[int, MostAccurateFrame]]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.frames = defaultdict(dict)
 
     def add_frame(self, frame: Frame):
         if (

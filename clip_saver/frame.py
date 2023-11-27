@@ -1,20 +1,27 @@
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict
 from supervision import BoundingBoxAnnotator, Detections, LabelAnnotator
 
-from .connection import Connection
 
-
-class Frame(BaseModel):
-    model_config: ConfigDict = ConfigDict(arbitrary_types_allowed=True)
-
+class Frame:
     raw_image: np.ndarray
     detections: Detections
     timestamp: datetime
-    connection: Connection
+    rtsp_url: str
+
+    def __init__(
+        self,
+        raw_image: np.ndarray,
+        detections: Detections,
+        timestamp: datetime,
+        rtsp_url: str,
+    ):
+        self.raw_image = raw_image
+        self.detections = detections
+        self.timestamp = timestamp
+        self.rtsp_url = rtsp_url
 
     def get_annotated_image(self, class_map: dict[int, str] | None = None):
         bounding_box_annotator = BoundingBoxAnnotator()
@@ -45,15 +52,14 @@ class Frame(BaseModel):
         return annotated_image
 
 
-Frame.model_rebuild()
-
-
-class StartAndEndFrames(BaseModel):
+@dataclass(kw_only=True)
+class StartAndEndFrames:
     start: Frame
     end: Frame
 
 
-class MostAccurateFrame(BaseModel):
+@dataclass(kw_only=True)
+class MostAccurateFrame:
     frame: Frame
     start_time: datetime
     end_time: datetime
