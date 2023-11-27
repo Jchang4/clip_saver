@@ -85,9 +85,10 @@ class DetectionSaver:
         )
 
         # Start detection
-        for result in results:
-            # Run 1 loop through all cameras
+        # Run 1 batch
+        while results:
             for i in range(len(self.rtsp_urls)):
+                result = next(iter(results))
                 if (
                     not isinstance(result, Results)
                     or not result.boxes
