@@ -12,6 +12,7 @@ from ultralytics.engine.results import Results
 from clip_saver.buffer import Buffer
 from clip_saver.callbacks import DetectionCallback, run_in_background
 from clip_saver.frame import Frame
+from clip_saver.rtsp import RtspUrl
 
 DEVICE = "cpu"
 if torch.cuda.is_available():
@@ -113,7 +114,7 @@ class DetectionSaver:
                 raw_image=result.orig_img,
                 detections=Detections.from_ultralytics(result),
                 timestamp=datetime.utcnow(),
-                rtsp_url=result.path,
+                rtsp_url=str(RtspUrl.from_yolo_path(result.path)),
             )
 
             if not self.time_first_detection:
