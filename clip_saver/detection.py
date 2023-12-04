@@ -10,7 +10,7 @@ from ultralytics import YOLO
 from ultralytics.engine.results import Results
 
 from clip_saver.buffer import Buffer
-from clip_saver.callbacks import DetectionCallback, run_in_background
+from clip_saver.callbacks import DetectionCallback
 from clip_saver.frame import Frame
 from clip_saver.rtsp import RtspUrl
 
@@ -119,10 +119,10 @@ class DetectionSaver:
 
             if not self.time_first_detection:
                 self.time_first_detection = datetime.utcnow()
-                run_in_background(self.on_detection_start, frame)
+                self.on_detection_start(frame)
 
             self.buffer.add_frame(frame)
-            run_in_background(self.on_detection, frame)
+            self.on_detection(frame)
 
         # End detection
         if (
@@ -145,7 +145,7 @@ class DetectionSaver:
 
             self.time_first_detection = None
             self.time_last_detection = None
-            run_in_background(self.on_detection_end)
+            self.on_detection_end()
 
             if self.verbose:
                 logging.info("Resetting buffer...")
