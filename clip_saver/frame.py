@@ -33,7 +33,7 @@ class Frame:
         )
 
         labels = [
-            f"{class_map[class_id] if class_map else class_id} confidence={(confidence*100):2f}%"
+            f"{class_map[class_id] if class_map else class_id} confidence={(confidence*100):.2f}%"
             for class_id, confidence in zip(
                 self.detections.class_id, self.detections.confidence
             )
