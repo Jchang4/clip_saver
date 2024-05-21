@@ -4,6 +4,7 @@ import numpy as np
 import supervision as sv
 import torch
 from ultralytics import YOLO
+from ultralytics.engine.results import Results
 
 from .core import Callback, Frame, VideoSource
 
@@ -36,15 +37,18 @@ class ClipSaver:
         self.init_callbacks()
         results = self.get_iterator()
         for result in results:
-            detections = sv.Detections.from_ultralytics(result)
-            detections = self.filter_detections(detections, result.names)
-            frame = Frame(
-                image=result.orig_img,
-                detections=detections,
-                timestamp=datetime.now().isoformat(),
-                video_path=self.video_source.get_video_url(),
-            )
-            self.run_callbacks(frame)
+            self.run(result)
+
+    def run(self, result: Results):
+        detections = sv.Detections.from_ultralytics(result)
+        detections = self.filter_detections(detections, result.names)
+        frame = Frame(
+            image=result.orig_img,
+            detections=detections,
+            timestamp=datetime.now().isoformat(),
+            video_path=self.video_source.get_video_url(),
+        )
+        self.run_callbacks(frame)
 
     def stop(self):
         for callback in self.callbacks:
