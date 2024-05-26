@@ -1,11 +1,11 @@
 from .base import VideoSource
 
 
-class MP4VideoSource(VideoSource):
-    source: str
+class FileVideoSource(VideoSource):
+    file_path: str
 
-    def __init__(self, source: str):
-        self.source = source
+    def __init__(self, file_path: str):
+        self.file_path = file_path
 
     def get_video_url(self) -> str:
-        return self.source
+        return self.file_path
