@@ -24,3 +24,11 @@ class TrackerIdCallback(Callback):
 
     def stop(self):
         pass
+
+    def get_frames(self) -> Frame:
+        return [
+            frame
+            for track_id, label_to_frames in self.trackid_to_label_to_frames.items()
+            for label, frames in label_to_frames.items()
+            for frame in frames
+        ]
