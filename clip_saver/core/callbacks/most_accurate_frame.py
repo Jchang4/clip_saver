@@ -6,10 +6,19 @@ from .tracker import TrackerIdCallback
 
 
 @dataclass(kw_only=True)
-class MostAccurateFrame:
-    frame: Frame
+class MostAccurateFrame(Frame):
     start_time: str
     end_time: str
+
+    def from_frame(frame: Frame, start_time: str, end_time: str):
+        return MostAccurateFrame(
+            image=frame.image,
+            detections=frame.detections,
+            timestamp=frame.timestamp,
+            video_path=frame.video_path,
+            start_time=start_time,
+            end_time=end_time,
+        )
 
 
 class MostAccurateFrameCallback(TrackerIdCallback):
@@ -29,7 +38,7 @@ class MostAccurateFrameCallback(TrackerIdCallback):
             )
             if prev_most_accurate is None:
                 self.trackid_to_label_to_frames[track_id][class_id] = [
-                    MostAccurateFrame(
+                    MostAccurateFrame.from_frame(
                         frame=frame,
                         start_time=frame.timestamp,
                         end_time=frame.timestamp,
@@ -44,7 +53,7 @@ class MostAccurateFrameCallback(TrackerIdCallback):
             )
             if conf > prev_confidence:
                 self.trackid_to_label_to_frames[track_id][class_id] = [
-                    MostAccurateFrame(
+                    MostAccurateFrame.from_frame(
                         frame=frame,
                         start_time=prev_most_accurate.start_time,
                         end_time=frame.timestamp,
@@ -62,3 +71,11 @@ class MostAccurateFrameCallback(TrackerIdCallback):
             if frame_track_id == track_id and frame_class_id == class_id:
                 return conf
         return 0
+
+    def get_frames(self) -> MostAccurateFrame:
+        return [
+            frame
+            for track_id, label_to_frames in self.trackid_to_label_to_frames.items()
+            for label, frames in label_to_frames.items()
+            for frame in frames
+        ]
