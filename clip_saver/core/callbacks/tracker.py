@@ -11,7 +11,7 @@ class TrackerIdCallback(Callback):
         self.trackid_to_label_to_frames = defaultdict(lambda: defaultdict(list))
 
     def start(self):
-        pass
+        self.trackid_to_label_to_frames = defaultdict(lambda: defaultdict(list))
 
     def run(self, frame: Frame):
         if frame.detections.tracker_id is None or frame.detections.class_id is None:
