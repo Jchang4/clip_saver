@@ -18,7 +18,7 @@ class RtspUrl:
         """Converts RTSP URL to a RtspUrl.
 
         Example:
-            rtsp://admin:yaub4feep9fuss@72.186.194.176:80/cam/realmonitor?channel=1&subtype=1
+            rtsp://admin:password@22.222.222.222:80/cam/realmonitor?channel=1&subtype=1
 
         Args:
             rtsp_url (str): _description_
@@ -46,8 +46,8 @@ class RtspUrl:
         """Converts YOLO prediction `path` to a valid RTSP URL.
 
         Example:
-            rtsp_//admin_yaub4feep9fuss_72.186.194.176_80/cam/realmonitor_channel_1_subtype_1
-            rtsp://admin:yaub4feep9fuss@72.186.194.176:80/cam/realmonitor?channel=1&subtype=1
+            rtsp_//admin_password_22.222.222.222_80/cam/realmonitor_channel_1_subtype_1
+            rtsp://admin_password@22.222.222.222:80/cam/realmonitor?channel=1&subtype=1
 
         Args:
             rtsp_url (str): _description_
