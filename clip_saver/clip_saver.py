@@ -20,6 +20,7 @@ class ClipSaver:
     video_source: VideoSource
     callbacks: list[Callback]
     confidence_thresholds: dict[str, float]
+    model_kwargs: dict[str, str]
 
     def __init__(
         self,
@@ -27,11 +28,13 @@ class ClipSaver:
         video_source: VideoSource,
         callbacks: list[Callback] = [],
         confidence_thresholds: dict[str, float] = {},
+        model_kwargs: dict[str, str] = {},
     ):
         self.model_path = model_path
         self.video_source = video_source
         self.callbacks = callbacks
         self.confidence_thresholds = confidence_thresholds
+        self.model_kwargs = model_kwargs
 
     def start(self):
         self.init_callbacks()
@@ -55,20 +58,24 @@ class ClipSaver:
             callback.stop()
 
     def get_iterator(self):
+        # Initialize with default args
+        combined_kwargs = {
+            "imgsz": 640,
+            "conf": 0.25,
+            "line_width": 2,
+            "stream": True,
+            "persist": True,
+            "verbose": False,
+            "show": False,
+            "save": False,  # save video
+        }
+
+        combined_kwargs.update(self.model_kwargs)
+
         return (
             YOLO(model=self.model_path, task="detect")
             .to(DEVICE)
-            .track(
-                source=self.video_source.get_video_url(),
-                imgsz=640,
-                conf=0.25,
-                line_width=2,
-                stream=True,
-                persist=True,
-                verbose=False,
-                show=False,
-                save=False,  # save video
-            )
+            .track(source=self.video_source.get_video_url(), **combined_kwargs)
         )
 
     def filter_detections(
