@@ -49,7 +49,7 @@ class MostAccurateFrameCallback(TrackerIdCallback):
             # Find most accurate frame
             prev_most_accurate = prev_most_accurate[-1]
             prev_confidence = self.get_confidence(
-                prev_most_accurate.frame, track_id, class_id
+                prev_most_accurate, track_id, class_id
             )
             if conf > prev_confidence:
                 self.trackid_to_label_to_frames[track_id][class_id] = [
