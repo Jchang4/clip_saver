@@ -44,7 +44,7 @@ class MostAccurateFrameCallback(TrackerIdCallback):
                         end_time=frame.timestamp,
                     )
                 ]
-                return
+                continue
 
             # Find most accurate frame
             prev_most_accurate = prev_most_accurate[-1]
@@ -72,7 +72,7 @@ class MostAccurateFrameCallback(TrackerIdCallback):
                 return conf
         return 0
 
-    def get_frames(self) -> MostAccurateFrame:
+    def get_frames(self) -> list[MostAccurateFrame]:
         return [
             frame
             for track_id, label_to_frames in self.trackid_to_label_to_frames.items()
