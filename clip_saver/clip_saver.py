@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Iterable
 
 import numpy as np
 import supervision as sv
@@ -49,7 +50,7 @@ class ClipSaver:
             image=result.orig_img,
             detections=detections,
             timestamp=datetime.now().isoformat(),
-            video_path=self.video_source.get_video_url(),
+            video_path=result.path,
         )
         self.run_callbacks(frame)
 
@@ -57,7 +58,7 @@ class ClipSaver:
         for callback in self.callbacks:
             callback.stop()
 
-    def get_iterator(self):
+    def get_iterator(self) -> Iterable[Results]:
         # Initialize with default args
         combined_kwargs = {
             "imgsz": 640,
