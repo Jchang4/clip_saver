@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Iterable
+from typing import Callable, Iterable
 
 import numpy as np
 import supervision as sv
@@ -19,22 +19,24 @@ elif torch.backends.mps.is_available():
 class ClipSaver:
     model_path: str
     video_source: VideoSource
+    detections_filter: list[Callable[[sv.Detections, list[str]], sv.Detections]]
     callbacks: list[Callback]
-    confidence_thresholds: dict[str, float]
     model_kwargs: dict[str, str]
 
     def __init__(
         self,
         model_path: str,
         video_source: VideoSource,
+        detections_filter: list[
+            Callable[[sv.Detections, list[str]], sv.Detections]
+        ] = [],
         callbacks: list[Callback] = [],
-        confidence_thresholds: dict[str, float] = {},
         model_kwargs: dict[str, str] = {},
     ):
         self.model_path = model_path
         self.video_source = video_source
+        self.detections_filter = detections_filter
         self.callbacks = callbacks
-        self.confidence_thresholds = confidence_thresholds
         self.model_kwargs = model_kwargs
 
     def start(self):
@@ -82,27 +84,8 @@ class ClipSaver:
     def filter_detections(
         self, detections: sv.Detections, classnames: list[str]
     ) -> sv.Detections:
-        filtered_class_ids = []
-        filtered_bboxes = []
-        filtered_confidences = []
-        for class_id, xyxy, conf in zip(
-            detections.class_id,
-            detections.xyxy,
-            detections.confidence,
-        ):
-            if conf < self.confidence_thresholds.get(classnames[class_id], 0.0):
-                continue
-            filtered_class_ids.append(class_id)
-            filtered_bboxes.append(xyxy)
-            filtered_confidences.append(conf)
-
-        if not filtered_class_ids:
-            return sv.Detections.empty()
-
-        detections.class_id = np.array(filtered_class_ids)
-        detections.xyxy = np.array(filtered_bboxes).reshape(-1, 4)
-        detections.confidence = np.array(filtered_confidences)
-
+        for filter_fn in self.detections_filter:
+            detections = filter_fn(detections, classnames)
         return detections
 
     def init_callbacks(self):
