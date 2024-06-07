@@ -32,3 +32,9 @@ class TrackerIdCallback(Callback):
             for label, frames in label_to_frames.items()
             for frame in frames
         ]
+
+    def get_latest_frame(self) -> Frame | None:
+        frames = sorted(self.get_frames(), key=lambda f: f.timestamp, reverse=True)
+        if not frames:
+            return None
+        return frames[0]
