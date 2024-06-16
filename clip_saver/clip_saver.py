@@ -76,7 +76,7 @@ class ClipSaver:
         combined_kwargs.update(self.model_kwargs)
 
         return (
-            YOLO(model=self.model_path, task="detect")
+            YOLO(model=self.model_path)
             .to(DEVICE)
             .track(source=self.video_source.get_video_url(), **combined_kwargs)
         )
