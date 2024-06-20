@@ -12,8 +12,8 @@ from .core import Callback, Frame, VideoSource
 DEVICE = "cpu"
 if torch.cuda.is_available():
     DEVICE = "cuda"
-elif torch.backends.mps.is_available():
-    DEVICE = "mps"
+# elif torch.backends.mps.is_available():
+#     DEVICE = "mps"
 
 
 class ClipSaver:
