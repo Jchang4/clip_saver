@@ -1,5 +1,5 @@
-from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime
 
 from ..datatypes.frame import Frame
 from .tracker import TrackerIdCallback
@@ -79,3 +79,17 @@ class MostAccurateFrameCallback(TrackerIdCallback):
             for label, frames in label_to_frames.items()
             for frame in frames
         ]
+
+    def get_start_end_times(self, track_id: int) -> tuple[datetime, datetime]:
+        classid_to_frames = self.trackid_to_label_to_frames[track_id]
+        all_frames = [
+            frame for frames in classid_to_frames.values() for frame in frames
+        ]
+
+        earliest_frame = min(all_frames, key=lambda frame: frame.start_time)
+        latest_frame = max(all_frames, key=lambda frame: frame.end_time)
+
+        return (
+            datetime.fromisoformat(earliest_frame.start_time),
+            datetime.fromisoformat(latest_frame.end_time),
+        )
