@@ -86,6 +86,9 @@ class MostAccurateFrameCallback(TrackerIdCallback):
             frame for frames in classid_to_frames.values() for frame in frames
         ]
 
+        if not all_frames:
+            return datetime.now(), datetime.now()
+
         earliest_frame = min(all_frames, key=lambda frame: frame.start_time)
         latest_frame = max(all_frames, key=lambda frame: frame.end_time)
 
