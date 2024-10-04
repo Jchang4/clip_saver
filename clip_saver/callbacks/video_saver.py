@@ -38,10 +38,10 @@ class VideoSaverCallback(BaseCallback):
             self.video_sink.write_frame(frame.image)
             return
 
-        bounding_box_annotator = sv.BoundingBoxAnnotator()
+        box_annotator = sv.BoxAnnotator()
         label_annotator = sv.LabelAnnotator()
 
-        annotated_image = bounding_box_annotator.annotate(
+        annotated_image = box_annotator.annotate(
             scene=frame.image, detections=frame.detections
         )
         annotated_image = label_annotator.annotate(
