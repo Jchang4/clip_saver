@@ -30,12 +30,9 @@ class VideoSaverCallback(BaseCallback):
             width=frame.image.shape[1], height=frame.image.shape[0], fps=15
         )
 
-        if (
-            not self.skip_no_detections
-            and frame.detections.class_id is None
-            or len(frame.detections.class_id) == 0
-        ):
-            self.video_sink.write_frame(frame.image)
+        if frame.detections.class_id is None or len(frame.detections.class_id) == 0:
+            if not self.skip_no_detections:
+                self.video_sink.write_frame(frame.image)
             return
 
         box_annotator = sv.BoxAnnotator()
