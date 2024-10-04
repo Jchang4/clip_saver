@@ -1,7 +1,7 @@
-from .base import VideoSource
+from .base import BaseVideoSource
 
 
-class FileVideoSource(VideoSource):
+class FileVideoSource(BaseVideoSource):
     file_path: str
 
     def __init__(self, file_path: str):

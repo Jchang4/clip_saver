@@ -1,7 +1,7 @@
-from .base import VideoSource
+from .base import BaseVideoSource
 
 
-class RTSPVideoSource(VideoSource):
+class RTSPVideoSource(BaseVideoSource):
     rtsp_url: str
 
     def __init__(self, rtsp_url: str):
@@ -11,7 +11,7 @@ class RTSPVideoSource(VideoSource):
         return self.rtsp_url
 
 
-class MultiRTSPVideoSource(VideoSource):
+class MultiRTSPVideoSource(BaseVideoSource):
     rtsp_urls: list[str]
 
     def __init__(self, rtsp_urls: list[str]):
