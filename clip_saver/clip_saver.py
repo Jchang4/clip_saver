@@ -4,11 +4,12 @@ from typing import Callable, Iterable
 import numpy as np
 import supervision as sv
 import torch
-from callbacks.base import BaseCallback
-from datatypes.frame import Frame
 from ultralytics import YOLO
 from ultralytics.engine.results import Results
-from video_source.base import BaseVideoSource
+
+from .callbacks.base import BaseCallback
+from .datatypes.frame import Frame
+from .video_source.base import BaseVideoSource
 
 
 class ClipSaver:
