@@ -21,10 +21,10 @@ class RtspUrl:
             rtsp://admin:password@22.222.222.222:80/cam/realmonitor?channel=1&subtype=1
 
         Args:
-            rtsp_url (str): _description_
+            rtsp_url (str): the RTSP URL
 
         Returns:
-            str: _description_
+            RtspUrl: the RtspUrl object
         """
         username, password = rtsp_url.split("@")[0].split("://")[1].split(":")
         ip, port = rtsp_url.split("@")[1].split("/")[0].split(":")
