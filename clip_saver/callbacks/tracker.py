@@ -1,10 +1,10 @@
 from collections import defaultdict
 
 from ..datatypes.frame import Frame
-from .base import Callback
+from .base import BaseCallback
 
 
-class TrackerIdCallback(Callback):
+class TrackerIdCallback(BaseCallback):
     trackid_to_label_to_frames: dict[int, dict[int, list[Frame]]]
 
     def __init__(self):

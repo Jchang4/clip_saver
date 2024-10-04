@@ -4,33 +4,28 @@ from typing import Callable, Iterable
 import numpy as np
 import supervision as sv
 import torch
+from callbacks.base import BaseCallback
+from datatypes.frame import Frame
 from ultralytics import YOLO
 from ultralytics.engine.results import Results
-
-from .core import Callback, Frame, VideoSource
-
-DEVICE = "cpu"
-if torch.cuda.is_available():
-    DEVICE = "cuda"
-# elif torch.backends.mps.is_available():
-#     DEVICE = "mps"
+from video_source.base import BaseVideoSource
 
 
 class ClipSaver:
     model_path: str
-    video_source: VideoSource
+    video_source: BaseVideoSource
     detections_filter: list[Callable[[sv.Detections, list[str]], sv.Detections]]
-    callbacks: list[Callback]
+    callbacks: list[BaseCallback]
     model_kwargs: dict[str, str]
 
     def __init__(
         self,
         model_path: str,
-        video_source: VideoSource,
+        video_source: BaseVideoSource,
         detections_filter: list[
             Callable[[sv.Detections, list[str]], sv.Detections]
         ] = [],
-        callbacks: list[Callback] = [],
+        callbacks: list[BaseCallback] = [],
         model_kwargs: dict[str, str] = {},
     ):
         self.model_path = model_path
@@ -63,8 +58,8 @@ class ClipSaver:
     def get_iterator(self) -> Iterable[Results]:
         # Initialize with default args
         combined_kwargs = {
-            "imgsz": 640,
-            "conf": 0.25,
+            # "imgsz": 640,
+            # "conf": 0.25,
             "line_width": 2,
             "stream": True,
             "persist": True,
@@ -75,10 +70,8 @@ class ClipSaver:
 
         combined_kwargs.update(self.model_kwargs)
 
-        return (
-            YOLO(model=self.model_path)
-            .to(DEVICE)
-            .track(source=self.video_source.get_video_url(), **combined_kwargs)
+        return YOLO(model=self.model_path).track(
+            source=self.video_source.get_video_url(), **combined_kwargs
         )
 
     def filter_detections(

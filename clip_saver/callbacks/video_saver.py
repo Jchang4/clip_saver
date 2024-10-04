@@ -2,10 +2,10 @@ import numpy as np
 import supervision as sv
 
 from ..datatypes.frame import Frame
-from .base import Callback
+from .base import BaseCallback
 
 
-class VideoSaverCallback(Callback):
+class VideoSaverCallback(BaseCallback):
     output_path: str
     video_sink: sv.VideoSink | None = None
     skip_no_detections: bool = False

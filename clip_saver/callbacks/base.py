@@ -1,7 +1,7 @@
 from ..datatypes.frame import Frame
 
 
-class Callback:
+class BaseCallback:
     def start(self):
         raise NotImplementedError()
 
