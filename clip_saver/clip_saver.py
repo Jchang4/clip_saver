@@ -59,7 +59,6 @@ class ClipSaver:
     def get_iterator(self) -> Iterable[Results]:
         # Initialize with default args
         combined_kwargs = {
-            "imgsz": 640,
             "conf": 0.25,
             "line_width": 2,
             "stream": True,
