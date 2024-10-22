@@ -1,4 +1,6 @@
+import os
 from datetime import datetime
+from multiprocessing import Process, Queue
 from typing import Callable, Iterable
 
 import numpy as np
@@ -11,6 +13,8 @@ from .callbacks.base import BaseCallback
 from .datatypes.frame import Frame
 from .video_source.base import BaseVideoSource
 
+STOP_VARIABLE_NAME = "CLIP_SAVER_STOP"
+
 
 class ClipSaver:
     model_path: str
@@ -18,6 +22,9 @@ class ClipSaver:
     detections_filter: list[Callable[[sv.Detections, list[str]], sv.Detections]]
     callbacks: list[BaseCallback]
     model_kwargs: dict[str, str]
+
+    frame_queue: Queue
+    callback_process: Process
 
     def __init__(
         self,
@@ -34,16 +41,27 @@ class ClipSaver:
         self.detections_filter = detections_filter
         self.callbacks = callbacks
         self.model_kwargs = model_kwargs
+        self.frame_queue = Queue()
+        self.callback_process = Process(
+            target=self.run_callbacks_in_process, args=(self.frame_queue,)
+        )
+        self.callback_process.start()
 
     def run(self, result: Results):
         frame = self.create_frame(result)
-        self.run_callbacks(frame)
+        self.frame_queue.put(frame)
 
     def start(self):
         self.init_callbacks()
         results = self.get_iterator()
-        for result in results:
-            self.run(result)
+        try:
+            for result in results:
+                if os.getenv(STOP_VARIABLE_NAME, "false").lower() == "true":
+                    break
+                self.run(result)
+        finally:
+            self.frame_queue.put(None)  # Signal the callback process to stop
+            self.callback_process.join()  # Wait for the callback process to finish
 
     def stop(self):
         for callback in self.callbacks:
@@ -81,6 +99,13 @@ class ClipSaver:
     def run_callbacks(self, frame: Frame):
         for callback in self.callbacks:
             callback.run(frame)
+
+    def run_callbacks_in_process(self, frame_queue: Queue):
+        while True:
+            frame = frame_queue.get()
+            if frame is None:  # Check for stop signal
+                break
+            self.run_callbacks(frame)
 
     def stop_callbacks(self):
         for callback in self.callbacks:
