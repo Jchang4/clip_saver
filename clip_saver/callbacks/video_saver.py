@@ -9,10 +9,17 @@ class VideoSaverCallback(BaseCallback):
     output_path: str
     video_sink: sv.VideoSink | None = None
     skip_no_detections: bool = False
+    include_boxes: bool = True
 
-    def __init__(self, output_path: str, skip_no_detections: bool = False):
+    def __init__(
+        self,
+        output_path: str,
+        skip_no_detections: bool = False,
+        include_boxes: bool = True,
+    ):
         self.output_path = output_path
         self.skip_no_detections = skip_no_detections
+        self.include_boxes = include_boxes
 
     def get_video_sink(self, width: int, height: int, fps: int):
         if self.video_sink is not None:
@@ -35,22 +42,24 @@ class VideoSaverCallback(BaseCallback):
                 self.video_sink.write_frame(frame.image)
             return
 
-        box_annotator = sv.BoxAnnotator()
-        label_annotator = sv.LabelAnnotator()
+        annotated_image = frame.image.copy()
+        if self.include_boxes:
+            box_annotator = sv.BoxAnnotator()
+            label_annotator = sv.LabelAnnotator()
 
-        annotated_image = box_annotator.annotate(
-            scene=frame.image, detections=frame.detections
-        )
-        annotated_image = label_annotator.annotate(
-            scene=annotated_image,
-            detections=frame.detections,
-            labels=[
-                f"{class_name} {confidence:.2f}"
-                for class_name, confidence in zip(
-                    frame.detections["class_name"], frame.detections.confidence
-                )
-            ],
-        )
+            annotated_image = box_annotator.annotate(
+                scene=frame.image, detections=frame.detections
+            )
+            annotated_image = label_annotator.annotate(
+                scene=annotated_image,
+                detections=frame.detections,
+                labels=[
+                    f"{class_name} {confidence:.2f}"
+                    for class_name, confidence in zip(
+                        frame.detections["class_name"], frame.detections.confidence
+                    )
+                ],
+            )
 
         self.video_sink.write_frame(annotated_image)
 

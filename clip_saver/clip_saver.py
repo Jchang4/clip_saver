@@ -35,22 +35,15 @@ class ClipSaver:
         self.callbacks = callbacks
         self.model_kwargs = model_kwargs
 
+    def run(self, result: Results):
+        frame = self.create_frame(result)
+        self.run_callbacks(frame)
+
     def start(self):
         self.init_callbacks()
         results = self.get_iterator()
         for result in results:
             self.run(result)
-
-    def run(self, result: Results):
-        detections = sv.Detections.from_ultralytics(result)
-        detections = self.filter_detections(detections, result.names)
-        frame = Frame(
-            image=result.orig_img,
-            detections=detections,
-            timestamp=datetime.now().isoformat(),
-            video_path=result.path,
-        )
-        self.run_callbacks(frame)
 
     def stop(self):
         for callback in self.callbacks:
@@ -92,3 +85,13 @@ class ClipSaver:
     def stop_callbacks(self):
         for callback in self.callbacks:
             callback.stop()
+
+    def create_frame(self, result: Results) -> Frame:
+        detections = sv.Detections.from_ultralytics(result)
+        detections = self.filter_detections(detections, result.names)
+        return Frame(
+            image=result.orig_img,
+            detections=detections,
+            timestamp=datetime.now().isoformat(),
+            video_path=result.path,
+        )
