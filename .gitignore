@@ -1,6 +1,5 @@
 *.egg-info
 **/*__pycache__
-notebooks
 **/*.DS_Store
 **/*.ipynb_checkpoints
 **/*.pyc
@@ -11,3 +10,5 @@ notebooks
 **/*.tmp
 **/*.zip
 **/*.gz
+
+notebooks_old/*
