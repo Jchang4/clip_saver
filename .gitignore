@@ -12,3 +12,4 @@
 **/*.gz
 
 notebooks_old/*
+*.pt
