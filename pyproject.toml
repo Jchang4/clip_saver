@@ -1,3 +1,18 @@
+[project]
+name = "clip_saver"
+version = "1.0.0"
+description = "Process video streams with YOLO object detection and customizable callbacks"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "jupyter>=1.1.1",
+    "lapx",
+    "supervision",
+    "torch>=2.9.1",
+    "torchvision>=0.24.1",
+    "ultralytics",
+]
+
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
