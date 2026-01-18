@@ -10,6 +10,7 @@ class MostAccurateFrame(Frame):
     start_time: str
     end_time: str
 
+    @staticmethod
     def from_frame(frame: Frame, start_time: str, end_time: str):
         return MostAccurateFrame(
             image=frame.image,

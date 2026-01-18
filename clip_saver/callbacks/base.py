@@ -1,12 +1,17 @@
+from abc import ABC, abstractmethod
+
 from ..datatypes.frame import Frame
 
 
-class BaseCallback:
+class BaseCallback(ABC):
+    @abstractmethod
     def start(self):
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def run(self, frame: Frame):
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def stop(self):
-        raise NotImplementedError()
+        pass

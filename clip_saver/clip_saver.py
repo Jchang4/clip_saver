@@ -63,10 +63,6 @@ class ClipSaver:
             self.frame_queue.put(None)  # Signal the callback process to stop
             self.callback_process.join()  # Wait for the callback process to finish
 
-    def stop(self):
-        for callback in self.callbacks:
-            callback.stop()
-
     def get_iterator(self) -> Iterable[Results]:
         # Initialize with default args
         combined_kwargs = {
