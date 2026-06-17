@@ -1,15 +1,43 @@
-*.egg-info
-**/*__pycache__
-**/*.DS_Store
-**/*.ipynb_checkpoints
-**/*.pyc
-**/*.so
-**/*.dylib
-**/*.swp
-**/*.bak
-**/*.tmp
-**/*.zip
-**/*.gz
+# Python cache/runtime artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.dylib
 
-notebooks_old/*
+# Packaging/build artifacts
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env/
+
+# Test/coverage artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS/editor temp files
+.DS_Store
+*.swp
+*.bak
+*.tmp
+
+# Archives
+*.zip
+*.gz
+
+# Project-generated files
+list.streams
+
+# Local notebooks/models
+notebooks_old/
 *.pt
